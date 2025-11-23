@@ -11,39 +11,30 @@ on:
 
 jobs:
   Continues-Integration_build_and_push:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-
-    - name: Log in to awscli
-      uses: aws-actions/configure-aws-credentials@v3
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
-
-
     - name: Build container image
       run: docker build -t bank-app-frontend:latest .
 
-    - name: Log in to ECR with short-lived credentials
+    - name: Log in to ECR
       run: |
-        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ vars.ECR_REPO }}
+        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 029373387388.dkr.ecr.us-east-1.amazonaws.com
   
     - name: Tag Docker image
-      run: docker tag bank-app-frontend:latest ${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}
+      run: docker tag bank-app-frontend:latest 029373387388.dkr.ecr.us-east-1.amazonaws.com/bank-frontend:${{ github.run_number }}
     
     - name: Push image to ECR
-      run: docker push ${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}
+      run: docker push 029373387388.dkr.ecr.us-east-1.amazonaws.com/bank-frontend:${{ github.run_number }}
 
 
     - name: Clean up Docker image locally
       run: |
         docker rmi bank-app-frontend:latest
-        docker rmi ${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}
+        docker rmi 029373387388.dkr.ecr.us-east-1.amazonaws.com/bank-frontend:${{ github.run_number }}
 
     - name: Clean up GitHub repo on runner
       run: rm -rf ./*
@@ -51,7 +42,7 @@ jobs:
 
   
   Continues-Update_k8s_manifest:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: Continues-Integration_build_and_push
     steps:
     - name: Checkout repository.
@@ -65,9 +56,9 @@ jobs:
          git config --global user.email "support@digitalwitchng.online"
          git config --global user.name "kaluifekwe"
 
-         sed -i "s+${{ vars.ECR_REPO }}/bank-frontend:.*+${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}+g" ./bank-project/frontend.yaml
+         sed -i "s+029373387388.dkr.ecr.us-east-1.amazonaws.com/bank-frontend:.*+029373387388.dkr.ecr.us-east-1.amazonaws.com/bank-frontend:${{ github.run_number }}+g" ./bank-project/frontend.yaml
 
-         cat ./bank-project/frontend.yaml | grep -q "${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}"
+         cat ./bank-project/frontend.yaml | grep -q "029373387388.dkr.ecr.us-east-1.amazonaws.com/bank-frontend:${{ github.run_number }}"
 
          git add bank-project/frontend.yaml
          git commit -m "Update frontend image to version ${{ github.run_number }}"
